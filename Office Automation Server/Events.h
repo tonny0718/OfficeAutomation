@@ -4,5 +4,8 @@
 #include "ThreadPool.h"
 
 void WINAPI OnLogin( PTP_CALLBACK_INSTANCE pInstance, void* packet);
+void WINAPI OnSchedule( PTP_CALLBACK_INSTANCE pInstance, void* packet);
+void WINAPI OnGetNameList( PTP_CALLBACK_INSTANCE pInstance, void* packet);
+void WINAPI OnSendMessage( PTP_CALLBACK_INSTANCE pInstance, void* packet);
 
 #endif
