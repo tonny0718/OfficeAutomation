@@ -7,7 +7,13 @@
 #include "afxdialogex.h"
 #include "PacketType.h"
 #include "AddWorkDlg.h"
+#include "SystemDlg.h"
+#include "NoteDlg.h"
 #include "MessageSendDlg.h"
+#include "MailListDlg.h"
+#include "FileDlg.h"
+#include "time.h"
+#include "AddRecipient.h"
 
 // ScheduleDlg 对话框
 
@@ -27,6 +33,7 @@ void ScheduleDlg::DoDataExchange(CDataExchange* pDX)
 {
   CDialogEx::DoDataExchange(pDX);
   DDX_Control(pDX, IDC_SCHEDULE_LSTWORK, m_lstWork);
+  DDX_Control(pDX, IDC_SCHEDULE_BTNTOSYSTEM, m_btnSystem);
 }
 
 
@@ -39,7 +46,11 @@ BEGIN_MESSAGE_MAP(ScheduleDlg, CDialogEx)
   ON_WM_TIMER()
   ON_BN_CLICKED(IDC_SCHEDULE_BTNDELETEWORK, &ScheduleDlg::OnBnClickedScheduleBtndeletework)
   ON_BN_CLICKED(IDC_SCHEDULE_BTNTOADDWORK, &ScheduleDlg::OnBnClickedScheduleBtntoaddwork)
+  ON_BN_CLICKED(IDC_SCHEDULE_BTNTOSYSTEM, &ScheduleDlg::OnBnClickedScheduleBtntosystem)
+  ON_BN_CLICKED(IDC_SCHEDULE_BTNTONOTE, &ScheduleDlg::OnBnClickedScheduleBtntonote)
   ON_BN_CLICKED(IDC_SCHEDULE_BTNTOMESSAGE, &ScheduleDlg::OnBnClickedScheduleBtntomessage)
+  ON_BN_CLICKED(IDC_SCHEDULE_BTNTOMAIL, &ScheduleDlg::OnBnClickedScheduleBtntomail)
+  ON_BN_CLICKED(IDC_SCHEDULE_BTNTOFILES, &ScheduleDlg::OnBnClickedScheduleBtntofiles)
 END_MESSAGE_MAP()
 
 
@@ -117,7 +128,9 @@ LRESULT ScheduleDlg::OnShowTask(WPARAM wParam, LPARAM lParam)
 				SetForegroundWindow();
 				DeleteTray();
 			}
-			else if(xx==IDR_OTHER) {MessageBox("你点击了“其他”菜单","提示",MB_OK);}
+			else if(xx==IDR_OTHER) {
+				MessageBox("你点击了“其他”菜单","提示",MB_OK);
+			}
 			else if(xx==IDR_EXIT) {OnBnClickedCancel();}
 			HMENU hmenu = menu.Detach();
 			menu.DestroyMenu();
@@ -191,6 +204,10 @@ BOOL ScheduleDlg::OnInitDialog()
 
   m_timerCount = 0;
 
+  if( theApp.m_priority != 0)
+  {
+    m_btnSystem.EnableWindow( false);
+  }
   return TRUE;  // return TRUE unless you set the focus to a control
   // 异常: OCX 属性页应返回 FALSE
 }
@@ -199,23 +216,20 @@ BOOL ScheduleDlg::OnInitDialog()
 void ScheduleDlg::OnTimer(UINT_PTR nIDEvent)
 {
   // TODO: 在此添加消息处理程序代码和/或调用默认值
-  map<string, pair<string,int> >::iterator iter = theApp.m_schedule.begin();//字典序最小的一定是最近的时间
-  char hint[1024];
-  sprintf( hint, "您计划在 %s 时进行工作：%s。现距离该时间已不足两分钟。", iter->first.c_str(), iter->second.first.c_str());
-  int ID = iter->second.second;
-  theApp.m_schedule.erase( iter);
-  SendMessage( WM_UPDATELIST);
+	map<string, pair<string,int> >::iterator iter = theApp.m_schedule.begin();//字典序最小的一定是最近的时间
+	char hint[1024];
+	sprintf( hint, "您计划在 %s 时进行工作：%s。现距离该时间已不足两分钟。", iter->first.c_str(), iter->second.first.c_str());
+	int ID = iter->second.second;
+	theApp.m_schedule.erase( iter);
+	SendMessage( WM_UPDATELIST);
   
-  RakNet::BitStream bsOut;
-  bsOut.Write( (RakNet::MessageID)RH_SCHEDULE);
-  bsOut.Write( SO_DONE);
-  bsOut.Write( ID);
-  theApp.m_peer->Send( &bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0, theApp.m_serverAddress, false);
-
-  MessageBox( hint, "提示", MB_OK);
-
-
-  CDialogEx::OnTimer(nIDEvent);
+	RakNet::BitStream bsOut;
+	bsOut.Write( (RakNet::MessageID)RH_SCHEDULE);
+	bsOut.Write( SO_DONE);
+	bsOut.Write( ID);
+	theApp.m_peer->Send( &bsOut, HIGH_PRIORITY, RELIABLE_ORDERED, 0, theApp.m_serverAddress, false);
+	MessageBox( hint, "提示", MB_OK);
+	CDialogEx::OnTimer(nIDEvent);
 }
 
 
@@ -250,9 +264,40 @@ void ScheduleDlg::OnBnClickedScheduleBtntoaddwork()
 }
 
 
+void ScheduleDlg::OnBnClickedScheduleBtntosystem()
+{
+  // TODO: 在此添加控件通知处理程序代码
+  theApp.m_systemDlg.DoModal();
+}
+
+
+void ScheduleDlg::OnBnClickedScheduleBtntonote()
+{
+  // TODO: 在此添加控件通知处理程序代码
+  CNoteDlg noteDlg;
+  noteDlg.DoModal();
+}
+
+
 void ScheduleDlg::OnBnClickedScheduleBtntomessage()
 {
+  // TODO: 在此添加控件通知处理程序代码
+  CMessageSendDlg messageSendDlg;
+  messageSendDlg.DoModal();
+}
+
+
+void ScheduleDlg::OnBnClickedScheduleBtntomail()
+{
 	// TODO: 在此添加控件通知处理程序代码
-	CMessageSendDlg messageSendDlg;
-	messageSendDlg.DoModal();
+	CMailListDlg mailListDlg;
+	mailListDlg.DoModal();
+}
+
+
+void ScheduleDlg::OnBnClickedScheduleBtntofiles()
+{
+	// TODO: 在此添加控件通知处理程序代码
+	CFileDlg fileDlg;
+	fileDlg.DoModal();
 }

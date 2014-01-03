@@ -80,13 +80,25 @@ int main()
       {
         g_globalData->threadPool.RunFunction( OnSchedule, packet);
       }
-	  else if( packet->data[0] == RH_GETNAMELIST)
+      else if( packet->data[0] == RH_NOTE)
       {
-        g_globalData->threadPool.RunFunction( OnGetNameList, packet);
+        g_globalData->threadPool.RunFunction( OnNote, packet);
       }
-	  else if( packet->data[0] == RH_SENDMESSAGE)
+      else if( packet->data[0] == RH_SET_DEPARTMENT)
+      {
+        g_globalData->threadPool.RunFunction( OnSetDepartment, packet);
+      }
+      else if( packet->data[0] == RH_SET_HUMAN)
+      {
+        g_globalData->threadPool.RunFunction( OnSetHuman, packet);
+      }
+      else if( packet->data[0] == RH_SENDMESSAGE)
       {
         g_globalData->threadPool.RunFunction( OnSendMessage, packet);
+      }
+	  else if( packet->data[0] == RH_SENDMAIL)
+      {
+        g_globalData->threadPool.RunFunction( OnSendMail, packet);
       }
       else
       {

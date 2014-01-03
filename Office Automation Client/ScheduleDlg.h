@@ -42,5 +42,11 @@ public:
   afx_msg void OnTimer(UINT_PTR nIDEvent);
   afx_msg void OnBnClickedScheduleBtndeletework();
   afx_msg void OnBnClickedScheduleBtntoaddwork();
+  afx_msg void OnBnClickedScheduleBtntosystem();
+  CButton m_btnSystem;
+  afx_msg void OnBnClickedScheduleBtntonote();
   afx_msg void OnBnClickedScheduleBtntomessage();
+  afx_msg void OnBnClickedScheduleBtntomail();
+  afx_msg void OnBnClickedScheduleBtntofiles();
+
 };

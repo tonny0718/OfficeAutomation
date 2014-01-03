@@ -18,4 +18,10 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV Ö§³Ö
 
 	DECLARE_MESSAGE_MAP()
+public:
+	virtual BOOL OnInitDialog();
+	afx_msg void OnBnClickedNotesBtnsave();
+	afx_msg void OnBnClickedNotesBtncancel();
+	CString m_save;
+
 };

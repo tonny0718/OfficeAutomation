@@ -1,4 +1,5 @@
 #pragma once
+#include "afxcmn.h"
 
 
 // CMailListDlg 对话框
@@ -18,4 +19,14 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV 支持
 
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedMaillistBtnreturn();
+	afx_msg void OnBnClickedMaillistBtnnew();
+	virtual BOOL OnInitDialog();
+	CListCtrl m_list;
+
+	afx_msg void OnNMDblclkMaillistList(NMHDR *pNMHDR, LRESULT *pResult);
+	afx_msg void OnBnClickedMaillistAll();
+	afx_msg void OnBnClickedMaillistBtnrecieve();
+	afx_msg void OnBnClickedMaillistBtnsend();
 };

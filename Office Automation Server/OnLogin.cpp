@@ -46,8 +46,27 @@ void WINAPI OnLogin( PTP_CALLBACK_INSTANCE pInstance, void* packet)
     g_globalData->database->QueryWithoutResult( sqlCmd);
     g_globalData->databaseLock.Unlock();
 
+    //发送同事信息
+    sprintf( sqlCmd, "SELECT ID,name,department FROM account");
+    g_globalData->databaseLock.Lock();
+    count = g_globalData->database->QueryWithResult( sqlCmd);
+    RakNet::BitStream mates;
+    mates.Write( (RakNet::MessageID)RH_MATES);
+    mates.Write( count);
+    for( int i=0; i<count; i++)
+    {
+      g_globalData->database->FetchRow();
+      mates.Write( g_globalData->database->GetResultInt(0));//ID
+      RakNet::RakString name(g_globalData->database->GetResult(1));
+      mates.Write( name);
+      mates.Write( g_globalData->database->GetResultInt(2));//department
+    }
+    g_globalData->peer->Send( &mates, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+    g_globalData->database->FreeResult();
+    g_globalData->databaseLock.Unlock();
+
     //发送各部门名称
-    sprintf( sqlCmd, "SELECT ID,department_name FROM department");
+    sprintf( sqlCmd, "SELECT ID,department_name,department_master FROM department");
     g_globalData->databaseLock.Lock();
     count = g_globalData->database->QueryWithResult( sqlCmd);
     RakNet::BitStream departmentInformation;
@@ -59,6 +78,7 @@ void WINAPI OnLogin( PTP_CALLBACK_INSTANCE pInstance, void* packet)
       departmentInformation.Write( g_globalData->database->GetResultInt(0));//department_id
       RakNet::RakString departmentName( g_globalData->database->GetResult(1));
       departmentInformation.Write( departmentName);
+      departmentInformation.Write( g_globalData->database->GetResultInt(2));
     }
     g_globalData->peer->Send( &departmentInformation, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
     g_globalData->database->FreeResult();
@@ -85,23 +105,143 @@ void WINAPI OnLogin( PTP_CALLBACK_INSTANCE pInstance, void* packet)
     g_globalData->database->FreeResult();
     g_globalData->databaseLock.Unlock();
 
-    //发送同事信息
-    sprintf( sqlCmd, "SELECT ID,name,department FROM account");
+    
+
+    //发送备忘录信息
+    sprintf( sqlCmd, "SELECT note_intent FROM note WHERE Id=%d", ID);
     g_globalData->databaseLock.Lock();
-    count = g_globalData->database->QueryWithResult( sqlCmd);
-    RakNet::BitStream mates;
-    mates.Write( (RakNet::MessageID)RH_MATES);
-    mates.Write( count);
-    for( int i=0; i<count; i++)
-    {
-      g_globalData->database->FetchRow();
-      mates.Write( g_globalData->database->GetResultInt(0));//ID
-      RakNet::RakString name(g_globalData->database->GetResult(1));
-      mates.Write( name);
-      mates.Write( g_globalData->database->GetResultInt(2));//department
-    }
-    g_globalData->peer->Send( &mates, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+    g_globalData->database->QueryWithResult( sqlCmd);
+    RakNet::BitStream note;
+    note.Write( (RakNet::MessageID)RH_NOTE);
+    g_globalData->database->FetchRow();
+    RakNet::RakString noteIntent( g_globalData->database->GetResult(0));
+    note.Write( noteIntent);
+    g_globalData->peer->Send( &note, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
     g_globalData->database->FreeResult();
     g_globalData->databaseLock.Unlock();
+
+    //初始化消息
+
+	  char sqlCmd[1024];
+	  sprintf( sqlCmd, "SELECT fromuser,message,t from message where isread=0 and touser=%d ",ID);
+	  g_globalData->databaseLock.Lock();
+	  int messageNum = g_globalData->database->QueryWithResult(sqlCmd);
+	  if(messageNum == 0)
+	  {
+		  RakNet::BitStream bsOutTest;
+		  bsOutTest.Write( (RakNet::MessageID)RH_NEWMESSAGE);
+		  int from = 255;
+		  RakNet::RakString ACCmessage = "登录成功";
+		  bsOutTest.Write( from);
+		  bsOutTest.Write( ACCmessage);
+		  g_globalData->peer->Send( &bsOutTest, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+	  }
+	  else
+	  {
+		  for(int n=0;n<messageNum;n++)
+		  {
+			  g_globalData->database->FetchRow();
+			  RakNet::BitStream bsOutTest;
+			  bsOutTest.Write( (RakNet::MessageID)RH_NEWMESSAGE);
+			  RakNet::RakString ACCmessage = g_globalData->database->GetResult(1);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(0));
+			  bsOutTest.Write( ACCmessage);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(2));
+			  g_globalData->peer->Send( &bsOutTest, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+		  }
+	  }
+	  g_globalData->databaseLock.Unlock();
+
+
+
+
+	  //初始化公文
+	  RakNet::RakString title,content;
+	  int mailNum;
+	  char sqlMail[1024];
+	  //下发未读，已读公文。
+	  sprintf( sqlMail, "SELECT fromuser,todepartment,title,t,content,isread,type from mail where type=1 and todepartment=%d ",ID);
+	  g_globalData->databaseLock.Lock();
+	  mailNum = g_globalData->database->QueryWithResult(sqlMail);
+	  if(mailNum != 0)
+	  {
+		  for(int n=0;n<mailNum;n++)
+		  {
+			  g_globalData->database->FetchRow();
+			  RakNet::BitStream bsOutTest;
+			  bsOutTest.Write( (RakNet::MessageID)RH_SENDMAIL);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(0));//fromuser
+			  bsOutTest.Write( g_globalData->database->GetResultInt(1));//todepartment
+			  title = g_globalData->database->GetResult(2);             //title
+			  bsOutTest.Write( title);
+			  content = g_globalData->database->GetResult(4);           //content
+			  bsOutTest.Write( content);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(5));//isread
+			  bsOutTest.Write( g_globalData->database->GetResultInt(3));//t
+			  bsOutTest.Write( g_globalData->database->GetResultInt(6));//type
+			  g_globalData->peer->Send( &bsOutTest, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+		  }
+	  }
+	  g_globalData->databaseLock.Unlock();
+
+
+	  //收取发送公文
+	  sprintf( sqlMail, "SELECT fromuser,todepartment,title,t,content,isread,type from mail where type=0 and fromuser=%d ",ID);
+	  g_globalData->databaseLock.Lock();
+	  mailNum = g_globalData->database->QueryWithResult(sqlMail);
+	  if(mailNum != 0)
+	  {
+		  for(int n=0;n<mailNum;n++)
+		  {
+			  g_globalData->database->FetchRow();
+			  RakNet::BitStream bsOutTest;
+			  bsOutTest.Write( (RakNet::MessageID)RH_SENDMAIL);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(0));//fromuser
+			  bsOutTest.Write( g_globalData->database->GetResultInt(1));//todepartment
+			  title = g_globalData->database->GetResult(2);             //title
+			  bsOutTest.Write( title);
+			  content = g_globalData->database->GetResult(4);           //content
+			  bsOutTest.Write( content);
+			  bsOutTest.Write( g_globalData->database->GetResultInt(5));//isread
+			  bsOutTest.Write( g_globalData->database->GetResultInt(3));//t
+			  bsOutTest.Write( g_globalData->database->GetResultInt(6));//type
+			  g_globalData->peer->Send( &bsOutTest, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+		  }
+	  }
+	  g_globalData->databaseLock.Unlock();
+
+	  //下发待审批公文
+	  sprintf( sqlMail, "SELECT id from department where department_master=%d ",ID);
+	  g_globalData->databaseLock.Lock();
+	  int isBoss = g_globalData->database->QueryWithResult(sqlMail);
+	  if(isBoss != 0)
+	  {
+		  //printf("isBoss");
+		  g_globalData->database->FetchRow();
+		  int bossDepartmentId = g_globalData->database->GetResultInt(0);
+		  //给boss发审批
+		  sprintf( sqlMail, "SELECT fromuser,todepartment,title,t,content,isread,type from mail,account where fromuser=id and type=0 and department=%d ",bossDepartmentId);
+		  int mailNum = g_globalData->database->QueryWithResult(sqlMail);
+		  if(mailNum != 0)
+		  {
+			  for(int n=0;n<mailNum;n++)
+			  {
+				  g_globalData->database->FetchRow();
+				  RakNet::BitStream bsOutTest;
+				  bsOutTest.Write( (RakNet::MessageID)RH_SENDMAIL);
+				  bsOutTest.Write( g_globalData->database->GetResultInt(0));//fromuser
+				  bsOutTest.Write( g_globalData->database->GetResultInt(1));//todepartment
+				  title = g_globalData->database->GetResult(2);             //title
+				  bsOutTest.Write( title);
+				  content = g_globalData->database->GetResult(4);           //content
+				  bsOutTest.Write( content);
+				  bsOutTest.Write( g_globalData->database->GetResultInt(5));//isread
+				  bsOutTest.Write( g_globalData->database->GetResultInt(3));//t
+				  bsOutTest.Write( g_globalData->database->GetResultInt(6));//type
+				  g_globalData->peer->Send( &bsOutTest, HIGH_PRIORITY, RELIABLE_ORDERED, 0, pIn->systemAddress, false);
+			  }
+		  }
+	  }
+	  g_globalData->databaseLock.Unlock();
   }
 }

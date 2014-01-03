@@ -18,4 +18,15 @@ protected:
 	virtual void DoDataExchange(CDataExchange* pDX);    // DDX/DDV Ö§³Ö
 
 	DECLARE_MESSAGE_MAP()
+public:
+	afx_msg void OnBnClickedSendmailBtncancel();
+	virtual BOOL OnInitDialog();
+	CString m_title;
+	CString m_content;
+	CString m_departments;
+	afx_msg void OnBnClickedSendmailBtnsend();
+	afx_msg void OnBnClickedSendmailBtnchooserecipient();
 };
+
+
+unsigned WINAPI NewMailThread( void* message);
